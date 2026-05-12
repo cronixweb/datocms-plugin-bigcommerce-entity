@@ -13,7 +13,8 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
 
   const pluginConfig = normalizeConfig(ctx.plugin.attributes.parameters)
   const fieldConfig = ctx.field.attributes.appearance.parameters as unknown as { idType: "id" | "entityId", entityType?: BigcommerceEntityType }
-  const entityType = fieldConfig.entityType || "product";
+  const runtimeConfig = (ctx.parameters as { entityType?: BigcommerceEntityType, idType?: EntityIdKey } | undefined) || {};
+  const entityType = runtimeConfig.entityType || fieldConfig.entityType || "product";
 
   let graphqlIdField: EntityIdKey;
   if (fieldType === "integer")
@@ -33,8 +34,14 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
   };
 
   const triggerModal = async () => {
+    const modalId = entityType === "brand"
+      ? "browseBrands"
+      : entityType === "category"
+        ? "browseCategories"
+        : "browseProducts";
+
     const entity = (await ctx.openModal({
-      id: 'browseProducts',
+      id: modalId,
       title: `Select BigCommerce ${entityType}`,
       width: 'xl',
       parameters: { entityType },

@@ -6,21 +6,17 @@ export const ProductsGrid: React.FC<{
   products: BigcommerceEntity[];
   onProductClick: (p: BigcommerceEntity) => void;
 }> = ({ products, onProductClick }) => {
-  const getImage = (product: BigcommerceEntity) =>
-    "defaultImage" in product ? product.defaultImage?.urlOriginal : undefined;
-
   return (
-    <div className={S.container}>
+    <ul className={S.container}>
       {products.map((product) => (
-        <article
+        <li
           key={product.id}
-          className={S.card}
+          className={S.item}
           onClick={() => onProductClick(product)}
         >
-          {getImage(product) ? <img src={getImage(product)} /> : null}
-          <h1 className={S.cardTitle}>{product.name}</h1>
-        </article>
+          <span className={S.itemTitle}>{product.name}</span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 };

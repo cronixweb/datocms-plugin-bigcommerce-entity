@@ -23,18 +23,35 @@ export const useEntitySearch = (
   const [entities, setEntities] = useState<BigcommerceEntity[]>([]);
 
   useEffect(() => {
+    let isStale = false;
+
     setState("loading");
     setEntities([]);
 
     searchByType[entityType](term, config)
       .then((results) => {
+        if (isStale) {
+          return;
+        }
         setEntities(results);
       })
-      .then(() => setState("idle"))
+      .then(() => {
+        if (isStale) {
+          return;
+        }
+        setState("idle");
+      })
       .catch((e) => {
+        if (isStale) {
+          return;
+        }
         console.error(e);
         setState("error");
       });
+
+    return () => {
+      isStale = true;
+    };
   }, [config, entityType, term]);
 
   return { state, entities };

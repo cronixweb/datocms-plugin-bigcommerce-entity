@@ -1,24 +1,27 @@
 .container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-row-gap: 10px;
-    grid-column-gap: 10px;
-    padding-top: 10px;
-}
-
-.card {
-    border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
+    gap: 8px;
+    padding-top: 10px;
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+}
+
+.item {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
     background: var(--light-bg-color);
     cursor: pointer;
     transition: all 250ms ease-out;
+    padding: 10px 12px;
 }
 
-.card:hover {
+.item:hover {
     background: var(--light-color);
 }
 
-.cardTitle {
-    padding: 16px 8px 8px 8px;
+.itemTitle {
+    font-size: 14px;
+    line-height: 1.3;
 }

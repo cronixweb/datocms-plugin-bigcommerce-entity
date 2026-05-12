@@ -72,13 +72,20 @@ connect({
     render(<FieldExtension ctx={ctx}/>);
   },
   renderModal(modalId, ctx) {
-    if (modalId !== "browseProducts") {
+    if (!["browseProducts", "browseBrands", "browseCategories"].includes(modalId)) {
       return null;
     }
+
+    const inferredEntityType: BigcommerceEntityType = modalId === "browseBrands"
+      ? "brand"
+      : modalId === "browseCategories"
+        ? "category"
+        : "product";
+
     return render(<BrowseProductsModal
       ctx={ctx}
       config={normalizeConfig(ctx.plugin.attributes.parameters)}
-      entityType={((ctx.parameters as { entityType?: BigcommerceEntityType })?.entityType || "product")}
+      entityType={((ctx.parameters as { entityType?: BigcommerceEntityType })?.entityType || inferredEntityType)}
     />)
   }
 });
