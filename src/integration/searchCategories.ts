@@ -10,7 +10,15 @@ type CategoryTreeItem = {
   children?: CategoryTreeItem[];
 };
 
-const PAGE_SIZE = 50;
+const mapToCategory = (node: CategoryTreeItem): Category => ({
+  id: String(node.entityId),
+  entityId: node.entityId,
+  name: node.name,
+  path: node.path,
+});
+
+const dedupeCategories = (categories: Category[]) =>
+  Array.from(new Map(categories.map((category) => [category.entityId, category])).values());
 
 export const searchCategories = async (
   term: string,
@@ -18,149 +26,88 @@ export const searchCategories = async (
 ): Promise<Category[]> => {
   try {
     const rootsResponse = await request<{
-    site: {
-      categoryTree: CategoryTreeItem[];
-    };
+      site: {
+        categoryTree: CategoryTreeItem[];
+      };
     }>(
-    config.graphqlEndpoint,
-    gql`
-        query categoryRoots {
-            site {
-                categoryTree {
-                    entityId
-                    name
-                    path
-                    hasChildren
-                }
-            }
-        }
-    `,
-    undefined,
-    {
-      Authorization: `Bearer ${config.authorizationToken}`,
-    },
-  );
+      config.graphqlEndpoint,
+      gql`
+          query categoryRoots {
+              site {
+                  categoryTree {
+                      entityId
+                      name
+                      path
+                      hasChildren
+                  }
+              }
+          }
+      `,
+      undefined,
+      {
+        Authorization: `Bearer ${config.authorizationToken}`,
+      },
+    );
 
-    const categories: Category[] = rootsResponse.site.categoryTree.map((node) => ({
-      id: String(node.entityId),
-      entityId: node.entityId,
-      name: node.name,
-      path: node.path,
-    }));
-
+    const categories: Category[] = rootsResponse.site.categoryTree.map(mapToCategory);
     const queue: number[] = rootsResponse.site.categoryTree
       .filter((node) => Boolean(node.hasChildren))
       .map((node) => node.entityId);
+    const visitedParents = new Set<number>();
 
     while (queue.length > 0) {
-      const parentEntityId = queue.shift();
-      if (!parentEntityId) {
+      const rootEntityId = queue.shift();
+      if (!rootEntityId || visitedParents.has(rootEntityId)) {
         continue;
       }
+      visitedParents.add(rootEntityId);
 
-      let hasNextPage = true;
-      let after: string | null = null;
-
-      while (hasNextPage) {
-        const childrenResponse: {
-          site: {
-            category: {
-              children: {
-                pageInfo: {
-                  hasNextPage: boolean;
-                  endCursor: string | null;
-                };
-                edges: {
-                  node: CategoryTreeItem;
-                }[];
-              } | null;
-            } | null;
-          };
-        } = await request<{
+      const branchResponse = await request<{
         site: {
-          category: {
-            children: {
-              pageInfo: {
-                hasNextPage: boolean;
-                endCursor: string | null;
-              };
-              edges: {
-                node: CategoryTreeItem;
-              }[];
-            } | null;
-          } | null;
+          categoryTree: CategoryTreeItem[];
         };
       }>(
         config.graphqlEndpoint,
         gql`
-            query categoryChildren($entityId: Int!, $first: Int!, $after: String) {
+            query categoryBranch($rootEntityId: Int) {
                 site {
-                    category(entityId: $entityId) {
-                        children(first: $first, after: $after) {
-                            pageInfo {
-                                hasNextPage
-                                endCursor
-                            }
-                            edges {
-                                node {
-                                    id
-                                    entityId
-                                    name
-                                    path
-                                    hasChildren
-                                }
-                            }
+                    categoryTree(rootEntityId: $rootEntityId) {
+                        entityId
+                        name
+                        path
+                        hasChildren
+                        children {
+                            entityId
+                            name
+                            path
+                            hasChildren
                         }
                     }
                 }
             }
         `,
-        {
-          entityId: parentEntityId,
-          first: PAGE_SIZE,
-          after,
-        },
+        { rootEntityId },
         {
           Authorization: `Bearer ${config.authorizationToken}`,
         },
       );
 
-        const children: {
-          pageInfo: {
-            hasNextPage: boolean;
-            endCursor: string | null;
-          };
-          edges: {
-            node: CategoryTreeItem;
-          }[];
-        } | null | undefined = childrenResponse.site.category?.children;
-        if (!children) {
-          hasNextPage = false;
-          continue;
+      const parentNode =
+        branchResponse.site.categoryTree.find((node) => node.entityId === rootEntityId) ||
+        branchResponse.site.categoryTree[0];
+      const children = parentNode?.children || [];
+
+      children.forEach((child) => {
+        categories.push(mapToCategory(child));
+        if (child.hasChildren) {
+          queue.push(child.entityId);
         }
-
-        children.edges.forEach((edge: { node: CategoryTreeItem }) => {
-          categories.push({
-            id: String(edge.node.entityId),
-            entityId: edge.node.entityId,
-            name: edge.node.name,
-            path: edge.node.path,
-          });
-          if (edge.node.hasChildren) {
-            queue.push(edge.node.entityId);
-          }
-        });
-
-        hasNextPage = children.pageInfo.hasNextPage;
-        after = children.pageInfo.endCursor;
-      }
+      });
     }
 
-    const dedupedCategories = Array.from(
-      new Map(categories.map((category) => [category.entityId, category])).values(),
-    );
-
+    const dedupedCategories = dedupeCategories(categories);
     const normalizedTerm = term.trim().toLowerCase();
+
     if (!normalizedTerm) {
       return dedupedCategories;
     }
@@ -206,27 +153,27 @@ export const searchCategoriesFallback = async (
     },
   );
 
-  const categories = response.site.categoryTree.flatMap((node) => ([
-    {
-      id: String(node.entityId),
-      entityId: node.entityId,
-      name: node.name,
-      path: node.path,
-    },
-    ...(node.children || []).map((child) => ({
-      id: String(child.entityId),
-      entityId: child.entityId,
-      name: child.name,
-      path: child.path,
-    })),
-  ]));
-  const normalizedTerm = term.trim().toLowerCase();
+  const queue: CategoryTreeItem[] = [...response.site.categoryTree];
+  const categories: Category[] = [];
 
-  if (!normalizedTerm) {
-    return categories;
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (!node) {
+      continue;
+    }
+    categories.push(mapToCategory(node));
+    if (node.children?.length) {
+      queue.push(...node.children);
+    }
   }
 
-  return categories.filter((category) =>
+  const dedupedCategories = dedupeCategories(categories);
+  const normalizedTerm = term.trim().toLowerCase();
+  if (!normalizedTerm) {
+    return dedupedCategories;
+  }
+
+  return dedupedCategories.filter((category) =>
     category.name.toLowerCase().includes(normalizedTerm),
   );
 };
