@@ -3,3 +3,51 @@
     position: relative;
     margin-top: var(--spacing-l);
 }
+
+.treeContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.treeNode {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--light-bg-color);
+}
+
+.treeSummary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.treeSummary::-webkit-details-marker {
+    display: none;
+}
+
+.treeChildren {
+    border-top: 1px solid var(--border-color);
+    padding: 6px 8px 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.treeLeaf {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--light-bg-color);
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.treeName {
+    font-size: 14px;
+    line-height: 1.3;
+}
