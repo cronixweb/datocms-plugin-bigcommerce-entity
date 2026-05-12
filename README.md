@@ -7,6 +7,10 @@ Select a product from your BigCommerce store
 You'll have to provide your store's GraphQL endpoint and the respective authorization token.
 ![Plugin's configuration](docs/config.png)
 
+## Local development
+
+If you expose the Vite dev server through a tunnel such as ngrok, Vite will reject unknown `Host` headers unless they are explicitly allowed. This project accepts `*.ngrok-free.app` by default. To allow additional hosts, set `ALLOWED_HOSTS` as a comma-separated list before starting `vite`.
+
 ### Getting the GraphQL endpoint
 This url is typically of the form `https://store-HASH.mybigcommerce.com/graphql`, where HASH is the store hash required by the management API.
 
