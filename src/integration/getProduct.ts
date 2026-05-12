@@ -33,7 +33,7 @@ export const getProductById: (
   .then((response) => response.site.product)
 };
 
-export const getProducByEntityId: (
+export const getProductByEntityId: (
   productId: string | number,
   config: ValidConfig,
 ) => Promise<Product | undefined> = (productId, config) => {

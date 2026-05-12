@@ -19,4 +19,4 @@ export type Product = {
 };
 
 
-export type ProductIdKey = "id" | "entityId"
+export type ProductIdKey = "id" | "entityId";

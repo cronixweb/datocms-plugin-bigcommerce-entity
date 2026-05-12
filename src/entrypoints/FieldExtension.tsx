@@ -1,7 +1,7 @@
 import {RenderFieldExtensionCtx} from "datocms-plugin-sdk";
 import {normalizeConfig} from "../types/config.ts";
 import {Canvas, ContextInspector} from "datocms-react-ui";
-import {Product} from "../types/product.ts";
+import {BigcommerceEntity, BigcommerceEntityType, EntityIdKey} from "../types/entity.ts";
 import {EmptyState} from "../components/EmptyState";
 import {FieldBackground} from "../components/FieldBackground";
 import {SelectedProductDetails} from "../components/SelectedProductDetails";
@@ -12,9 +12,10 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
   const currentValue = ctx.formValues[ctx.fieldPath] as string | number | null
 
   const pluginConfig = normalizeConfig(ctx.plugin.attributes.parameters)
-  const fieldConfig = ctx.field.attributes.appearance.parameters as unknown as { idType: "id" | "entityId" }
+  const fieldConfig = ctx.field.attributes.appearance.parameters as unknown as { idType: "id" | "entityId", entityType?: BigcommerceEntityType }
+  const entityType = fieldConfig.entityType || "product";
 
-  let graphqlIdField: "id" | "entityId";
+  let graphqlIdField: EntityIdKey;
   if (fieldType === "integer")
     graphqlIdField = "entityId"
   else
@@ -32,16 +33,17 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
   };
 
   const triggerModal = async () => {
-    const product = (await ctx.openModal({
+    const entity = (await ctx.openModal({
       id: 'browseProducts',
-      title: 'Select BigCommerce product',
+      title: `Select BigCommerce ${entityType}`,
       width: 'xl',
-    })) as Product | null;
+      parameters: { entityType },
+    })) as BigcommerceEntity | null;
 
-    if (product) {
+    if (entity) {
       ctx.setFieldValue(
         ctx.fieldPath,
-        fieldType !== "integer" ? String(product[graphqlIdField]) : product[graphqlIdField],
+        fieldType !== "integer" ? String(entity[graphqlIdField]) : entity[graphqlIdField],
       );
     }
   };
@@ -52,6 +54,7 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
         <SelectedProductDetails
           productId={currentValue}
           idKey={graphqlIdField}
+          entityType={entityType}
           config={pluginConfig}
           onReset={handleReset}
           onSelectAnotherProduct={triggerModal}

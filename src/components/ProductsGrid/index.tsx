@@ -1,11 +1,14 @@
 import React from "react";
-import { Product } from "../../types/product";
+import { BigcommerceEntity } from "../../types/entity.ts";
 import S from "./style.module.css"
 
 export const ProductsGrid: React.FC<{
-  products: Product[];
-  onProductClick: (p: Product) => void;
+  products: BigcommerceEntity[];
+  onProductClick: (p: BigcommerceEntity) => void;
 }> = ({ products, onProductClick }) => {
+  const getImage = (product: BigcommerceEntity) =>
+    "defaultImage" in product ? product.defaultImage?.urlOriginal : undefined;
+
   return (
     <div className={S.container}>
       {products.map((product) => (
@@ -14,7 +17,7 @@ export const ProductsGrid: React.FC<{
           className={S.card}
           onClick={() => onProductClick(product)}
         >
-          <img src={product.defaultImage?.urlOriginal} />
+          {getImage(product) ? <img src={getImage(product)} /> : null}
           <h1 className={S.cardTitle}>{product.name}</h1>
         </article>
       ))}

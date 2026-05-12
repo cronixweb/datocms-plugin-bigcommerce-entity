@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from "react";
 import {Product, ProductIdKey} from "../types/product";
-import {getProducByEntityId, getProductById} from "../integration/getProduct";
+import {getProductByEntityId, getProductById} from "../integration/getProduct";
 import {ValidConfig} from "../types/config.ts";
 
 export const useProduct = (productId: string | number, idKey: ProductIdKey, config: ValidConfig) => {
@@ -10,14 +10,14 @@ export const useProduct = (productId: string | number, idKey: ProductIdKey, conf
   const fetchProduct = useCallback((productId: string | number) => {
     setState("loading");
 
-    (idKey === "id" ? getProductById : getProducByEntityId)(productId, config)
+    (idKey === "id" ? getProductById : getProductByEntityId)(productId, config)
       .then((product) => setProduct(product))
       .then(() => setState("idle"))
       .catch(e => {
         console.error(e);
         setState("error")
       });
-  }, [])
+  }, [config, idKey])
 
   useEffect(() => {
     setProduct(undefined);
@@ -26,7 +26,7 @@ export const useProduct = (productId: string | number, idKey: ProductIdKey, conf
       return;
     }
    fetchProduct(productId)
-  }, [productId]);
+  }, [fetchProduct, productId]);
 
   return { product, state, retry: () => fetchProduct(productId) };
 };

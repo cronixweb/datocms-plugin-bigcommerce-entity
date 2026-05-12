@@ -6,6 +6,7 @@ import {FieldConfigScreen} from "./entrypoints/FieldConfigScreen.tsx";
 import {FieldExtension} from "./entrypoints/FieldExtension.tsx";
 import {BrowseProductsModal} from "./components/BrowseProductsModal";
 import {isValidConfig, normalizeConfig} from "./types/config.ts";
+import {BigcommerceEntityType} from "./types/entity.ts";
 
 const FIELD_EXTENSION_ID = "bigcommerceProduct"
 
@@ -54,7 +55,7 @@ connect({
     return [
       {
         id: FIELD_EXTENSION_ID,
-        name: 'BigCommerce Product',
+        name: 'BigCommerce Entity',
         type: 'editor',
         fieldTypes: ['string', 'integer'],
         configurable: true,
@@ -77,6 +78,7 @@ connect({
     return render(<BrowseProductsModal
       ctx={ctx}
       config={normalizeConfig(ctx.plugin.attributes.parameters)}
+      entityType={((ctx.parameters as { entityType?: BigcommerceEntityType })?.entityType || "product")}
     />)
   }
 });

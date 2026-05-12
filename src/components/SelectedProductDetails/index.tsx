@@ -1,40 +1,58 @@
-import {useProduct} from "../../hooks/useProduct";
-import {ProductIdKey} from "../../types/product.ts";
+import {useEntity} from "../../hooks/useEntity.ts";
 import {ValidConfig} from "../../types/config.ts";
 import {Button, Spinner} from "datocms-react-ui";
 import styles from "./style.module.css"
+import {BigcommerceEntity, BigcommerceEntityType, EntityIdKey} from "../../types/entity.ts";
+
+const isProductEntity = (entity: BigcommerceEntity): entity is BigcommerceEntity & {
+  prices: {
+    price: {
+      value: number;
+      currencyCode: string;
+    };
+  };
+  availabilityV2: {
+    status: string;
+  };
+} => "prices" in entity && "availabilityV2" in entity;
+
+const getEntityImage = (entity: BigcommerceEntity): string | undefined =>
+  "defaultImage" in entity ? entity.defaultImage?.urlOriginal : undefined;
 
 export const SelectedProductDetails = ({
                                  productId,
                                  idKey,
+                                 entityType,
                                  config,
                                  onReset,
                                  onSelectAnotherProduct
                                }: {
   productId: string | number,
-  idKey: ProductIdKey,
+  idKey: EntityIdKey,
+  entityType: BigcommerceEntityType,
   config: ValidConfig,
   onReset: () => void,
   onSelectAnotherProduct: () => void
 }) => {
-  const {product, state, retry} = useProduct(productId, idKey, config);
+  const {entity, state, retry} = useEntity(entityType, productId, idKey, config);
+  const image = entity ? getEntityImage(entity) : undefined;
 
   return (
     <div className={styles['productDetailsContainer']}>
-      {product && (
+      {entity && (
         <>
-          <img
+          {image ? <img
             className={styles.productDetailsImage}
-            src={product.defaultImage?.urlOriginal}
-          />
-          <h1 className={styles.productDetailsTitle}>{product.name}</h1>
+            src={image}
+          /> : null}
+          <h1 className={styles.productDetailsTitle}>{entity.name}</h1>
           <div className={styles.productDetailsDescription}>
-            {product.plainTextDescription}
+            {"plainTextDescription" in entity && entity.plainTextDescription ? entity.plainTextDescription : ("path" in entity ? entity.path : null)}
           </div>
-          <div className={styles.productDetailsPrice}>
-            {product.prices.price.currencyCode} {product.prices.price.value} -{" "}
-            {product.availabilityV2.status}
-          </div>
+          {isProductEntity(entity) ? <div className={styles.productDetailsPrice}>
+            {entity.prices.price.currencyCode} {entity.prices.price.value} -{" "}
+            {entity.availabilityV2.status}
+          </div> : null}
 
           <div className={styles.actionsRow}>
             <Button
@@ -57,9 +75,9 @@ export const SelectedProductDetails = ({
       )}
 
       {state === "loading" && <Spinner placement={"centered"}/>}
-      {((state === "idle" && !product) || state === "error") && (
+      {((state === "idle" && !entity) || state === "error") && (
         <div className={styles.searchState}>
-          <div>{state === "error" ? "There has been an error fetching the product." : "Product not found..."}</div>
+          <div>{state === "error" ? `There has been an error fetching the ${entityType}.` : `${entityType} not found...`}</div>
         <div className={styles.actionsRow} style={{marginRight: "auto", justifyContent: "start", marginTop: 8}}>
           <Button buttonType={"primary"} buttonSize={"xs"} onClick={retry}>Retry</Button>
           <Button buttonType={"negative"} buttonSize={"xs"} onClick={onSelectAnotherProduct}>Replace...</Button>
