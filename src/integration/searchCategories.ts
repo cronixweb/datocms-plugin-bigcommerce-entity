@@ -20,10 +20,92 @@ const mapToCategory = (node: CategoryTreeItem): Category => ({
 const dedupeCategories = (categories: Category[]) =>
   Array.from(new Map(categories.map((category) => [category.entityId, category])).values());
 
-export const searchCategories = async (
-  term: string,
-  config: ValidConfig,
-): Promise<Category[]> => {
+const CATEGORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CATEGORY_CACHE_PREFIX = "bc-category-cache-v1";
+const inMemoryCache = new Map<string, { expiresAt: number; categories: Category[] }>();
+const inFlightFetches = new Map<string, Promise<Category[]>>();
+
+const getCacheKey = (config: ValidConfig) =>
+  `${CATEGORY_CACHE_PREFIX}:${config.graphqlEndpoint}`;
+
+const readLocalCache = (key: string): { expiresAt: number; categories: Category[] } | null => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as { expiresAt: number; categories: Category[] };
+    if (!parsed?.expiresAt || !Array.isArray(parsed.categories)) {
+      return null;
+    }
+    if (Date.now() > parsed.expiresAt) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeLocalCache = (key: string, categories: Category[]) => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    const payload = {
+      expiresAt: Date.now() + CATEGORY_CACHE_TTL_MS,
+      categories,
+    };
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch {
+    // Intentionally ignore localStorage write failures (quota/private mode).
+  }
+};
+
+const getCachedCategories = (config: ValidConfig): Category[] | null => {
+  const key = getCacheKey(config);
+  const memoryEntry = inMemoryCache.get(key);
+  if (memoryEntry && Date.now() <= memoryEntry.expiresAt) {
+    return memoryEntry.categories;
+  }
+
+  const localEntry = readLocalCache(key);
+  if (!localEntry) {
+    return null;
+  }
+
+  inMemoryCache.set(key, localEntry);
+  return localEntry.categories;
+};
+
+const setCachedCategories = (config: ValidConfig, categories: Category[]) => {
+  const key = getCacheKey(config);
+  const payload = {
+    expiresAt: Date.now() + CATEGORY_CACHE_TTL_MS,
+    categories,
+  };
+  inMemoryCache.set(key, payload);
+  writeLocalCache(key, categories);
+};
+
+const filterCategoriesByTerm = (categories: Category[], term: string): Category[] => {
+  const normalizedTerm = term.trim().toLowerCase();
+  if (!normalizedTerm) {
+    return categories;
+  }
+  return categories.filter((category) =>
+    category.name.toLowerCase().includes(normalizedTerm),
+  );
+};
+
+const fetchAllCategories = async (config: ValidConfig): Promise<Category[]> => {
   try {
     const rootsResponse = await request<{
       site: {
@@ -105,20 +187,41 @@ export const searchCategories = async (
       });
     }
 
-    const dedupedCategories = dedupeCategories(categories);
-    const normalizedTerm = term.trim().toLowerCase();
-
-    if (!normalizedTerm) {
-      return dedupedCategories;
-    }
-
-    return dedupedCategories.filter((category) =>
-      category.name.toLowerCase().includes(normalizedTerm),
-    );
+    return dedupeCategories(categories);
   } catch (error) {
     console.warn("Falling back to shallow category query due to category traversal error", error);
-    return searchCategoriesFallback(term, config);
+    return searchCategoriesFallback("", config);
   }
+};
+
+export const searchCategories = async (
+  term: string,
+  config: ValidConfig,
+): Promise<Category[]> => {
+  const cached = getCachedCategories(config);
+  if (cached) {
+    return filterCategoriesByTerm(cached, term);
+  }
+
+  const key = getCacheKey(config);
+  const existingFetch = inFlightFetches.get(key);
+  if (existingFetch) {
+    const sharedCategories = await existingFetch;
+    return filterCategoriesByTerm(sharedCategories, term);
+  }
+
+  const fetchPromise = fetchAllCategories(config)
+    .then((categories) => {
+      setCachedCategories(config, categories);
+      return categories;
+    })
+    .finally(() => {
+      inFlightFetches.delete(key);
+    });
+
+  inFlightFetches.set(key, fetchPromise);
+  const categories = await fetchPromise;
+  return filterCategoriesByTerm(categories, term);
 };
 
 export const searchCategoriesFallback = async (
