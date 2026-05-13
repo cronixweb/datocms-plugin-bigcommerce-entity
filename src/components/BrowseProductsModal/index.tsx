@@ -2,7 +2,7 @@ import {RenderModalCtx} from "datocms-plugin-sdk";
 import {ValidConfig} from "../../types/config.ts";
 import {Button, Canvas, Spinner, TextField, Toolbar} from "datocms-react-ui";
 import {useDebouncedCallback} from "use-debounce";
-import {UIEvent, useMemo, useState} from "react";
+import {UIEvent, useEffect, useMemo, useState} from "react";
 import {useEntitySearch} from "../../hooks/useEntitySearch.ts";
 import S from "./style.module.css"
 import {ProductsGrid} from "../ProductsGrid";
@@ -149,6 +149,11 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
     props.entityType === "category"
       ? buildCategoryTree(activeEntities as Category[])
       : [];
+
+  useEffect(() => {
+    props.ctx.stopAutoResizer();
+    props.ctx.updateHeight(720);
+  }, [props.ctx]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     if (props.entityType !== "product" || !productSearch.hasMore || productSearch.isLoadingMore) {
