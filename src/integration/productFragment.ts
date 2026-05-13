@@ -5,6 +5,7 @@ export const PRODUCT_FRAGMENT = gql`
         id
         entityId
         name
+        sku
         plainTextDescription
         defaultImage {
             urlOriginal

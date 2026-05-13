@@ -18,11 +18,18 @@ export const useEntitySearch = (
   entityType: BigcommerceEntityType,
   config: ValidConfig,
   term: string,
+  enabled: boolean = true,
 ) => {
   const [state, setState] = useState<"loading" | "error" | "idle">("idle");
   const [entities, setEntities] = useState<BigcommerceEntity[]>([]);
 
   useEffect(() => {
+    if (!enabled) {
+      setState("idle");
+      setEntities([]);
+      return;
+    }
+
     let isStale = false;
 
     setState("loading");
@@ -52,7 +59,7 @@ export const useEntitySearch = (
     return () => {
       isStale = true;
     };
-  }, [config, entityType, term]);
+  }, [config, enabled, entityType, term]);
 
   return { state, entities };
 };

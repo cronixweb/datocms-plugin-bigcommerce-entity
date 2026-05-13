@@ -2,6 +2,7 @@ export type Product = {
   id: string;
   entityId: number;
   name: string;
+  sku?: string;
   plainTextDescription?: string;
   defaultImage: {
     urlOriginal: string;

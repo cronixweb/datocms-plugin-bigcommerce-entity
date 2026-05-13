@@ -1,7 +1,19 @@
 .container {
-    min-height: 200px;
+    height: min(68vh, 720px);
+    max-height: min(68vh, 720px);
     position: relative;
     margin-top: var(--spacing-l);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.loadMoreIndicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted-color);
+    font-size: 12px;
+    padding: 10px 2px;
 }
 
 .treeContainer {
