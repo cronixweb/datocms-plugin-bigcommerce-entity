@@ -4,6 +4,7 @@ export type ValidConfig = {
   graphqlEndpoint: string;
   authorizationToken: string;
   isStoreEntityIdByDefault?: boolean;
+  extraCategoryRootEntityIds?: number[];
   paramsVersion: '2';
 };
 
@@ -16,7 +17,14 @@ export function isValidConfig(params: Config): params is ValidConfig {
 
 export function normalizeConfig(params: Config): ValidConfig {
   if (isValidConfig(params)) {
-    return params;
+    return {
+      ...params,
+      extraCategoryRootEntityIds: Array.isArray(params.extraCategoryRootEntityIds)
+        ? params.extraCategoryRootEntityIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value > 0)
+        : [],
+    };
   }
 
   return {
@@ -27,5 +35,11 @@ export function normalizeConfig(params: Config): ValidConfig {
         : '',
     graphqlEndpoint: 'graphqlEndpoint' in params ? params.graphqlEndpoint as string : '',
     isStoreEntityIdByDefault: 'isStoreEntityIdByDefault' in params ? params.isStoreEntityIdByDefault as boolean : false,
+    extraCategoryRootEntityIds:
+      'extraCategoryRootEntityIds' in params && Array.isArray(params.extraCategoryRootEntityIds)
+        ? params.extraCategoryRootEntityIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value > 0)
+        : [],
   };
 }
