@@ -1,7 +1,11 @@
 import {RenderFieldExtensionCtx} from "datocms-plugin-sdk";
 import {normalizeConfig} from "../types/config.ts";
 import {Canvas, ContextInspector} from "datocms-react-ui";
-import {BigcommerceEntity, BigcommerceEntityType, EntityIdKey} from "../types/entity.ts";
+import {
+  BigcommerceEntity,
+  EntityIdKey,
+  FieldExtensionParameters,
+} from "../types/entity.ts";
 import {EmptyState} from "../components/EmptyState";
 import {FieldBackground} from "../components/FieldBackground";
 import {SelectedProductDetails} from "../components/SelectedProductDetails";
@@ -21,6 +25,21 @@ function getValueFromPath(obj: unknown, path: string): unknown {
   }, obj);
 }
 
+function getSiblingFieldPath(fieldPath: string, currentApiKey: string, siblingApiKey?: string): string | null {
+  if (!siblingApiKey) {
+    return null;
+  }
+
+  const parts = fieldPath.split(".");
+
+  if (parts.at(-1) !== currentApiKey) {
+    return null;
+  }
+
+  parts[parts.length - 1] = siblingApiKey;
+  return parts.join(".");
+}
+
 export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
   const fieldType = ctx.field.attributes.field_type;
 
@@ -30,9 +49,14 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
     | null;
 
   const pluginConfig = normalizeConfig(ctx.plugin.attributes.parameters)
-  const fieldConfig = ctx.field.attributes.appearance.parameters as unknown as { idType: "id" | "entityId", entityType?: BigcommerceEntityType }
-  const runtimeConfig = (ctx.parameters as { entityType?: BigcommerceEntityType, idType?: EntityIdKey } | undefined) || {};
+  const fieldConfig = ctx.field.attributes.appearance.parameters as FieldExtensionParameters;
+  const runtimeConfig = (ctx.parameters as FieldExtensionParameters | undefined) || {};
   const entityType = runtimeConfig.entityType || fieldConfig.entityType || "product";
+  const labelFieldPath = getSiblingFieldPath(
+    ctx.fieldPath,
+    ctx.field.attributes.api_key,
+    runtimeConfig.labelFieldApiKey || fieldConfig.labelFieldApiKey,
+  );
 
   let graphqlIdField: EntityIdKey;
   if (fieldType === "integer")
@@ -49,6 +73,9 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
 
   const handleReset = () => {
     ctx.setFieldValue(ctx.fieldPath, null);
+    if (labelFieldPath) {
+      ctx.setFieldValue(labelFieldPath, null);
+    }
   };
 
   const triggerModal = async () => {
@@ -66,10 +93,13 @@ export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
     })) as BigcommerceEntity | null;
 
     if (entity) {
-      ctx.setFieldValue(
+      await ctx.setFieldValue(
         ctx.fieldPath,
         fieldType !== "integer" ? String(entity[graphqlIdField]) : entity[graphqlIdField],
       );
+      if (labelFieldPath) {
+        await ctx.setFieldValue(labelFieldPath, entity.name);
+      }
     }
   };
 
