@@ -6,10 +6,28 @@ import {EmptyState} from "../components/EmptyState";
 import {FieldBackground} from "../components/FieldBackground";
 import {SelectedProductDetails} from "../components/SelectedProductDetails";
 
+function getValueFromPath(obj: unknown, path: string): unknown {
+  return path.split(".").reduce<unknown>((acc, key) => {
+    if (Array.isArray(acc)) {
+      const index = parseInt(key, 10);
+      return Number.isNaN(index) ? undefined : acc[index];
+    }
+
+    if (acc && typeof acc === "object") {
+      return (acc as Record<string, unknown>)[key];
+    }
+
+    return undefined;
+  }, obj);
+}
+
 export const FieldExtension = ({ctx}: { ctx: RenderFieldExtensionCtx }) => {
   const fieldType = ctx.field.attributes.field_type;
 
-  const currentValue = ctx.formValues[ctx.fieldPath] as string | number | null
+  const currentValue = getValueFromPath(ctx.formValues, ctx.fieldPath) as
+    | string
+    | number
+    | null;
 
   const pluginConfig = normalizeConfig(ctx.plugin.attributes.parameters)
   const fieldConfig = ctx.field.attributes.appearance.parameters as unknown as { idType: "id" | "entityId", entityType?: BigcommerceEntityType }
