@@ -9,6 +9,44 @@ export type ProductsPage = {
   endCursor: string | null;
 };
 
+const normalizeTerm = (term: string) => term.trim().toLowerCase();
+
+export const isSkuLikeTerm = (term: string) => {
+  const normalizedTerm = term.trim();
+
+  if (!normalizedTerm) {
+    return false;
+  }
+
+  return normalizedTerm.length <= 64 && !/\s/.test(normalizedTerm) && (
+    /[-_/]/.test(normalizedTerm) ||
+    /\d/.test(normalizedTerm) ||
+    /^[A-Z0-9]+$/.test(normalizedTerm)
+  );
+};
+
+const matchesSku = (product: Product, term: string) => {
+  const sku = product.sku?.trim().toLowerCase();
+
+  return sku === normalizeTerm(term);
+};
+
+const matchesName = (product: Product, term: string) => {
+  const name = product.name.trim().toLowerCase();
+
+  return name.includes(normalizeTerm(term));
+};
+
+export const filterProductsByName = (products: Product[], term: string) => {
+  const normalizedTerm = normalizeTerm(term);
+
+  if (!normalizedTerm) {
+    return products;
+  }
+
+  return products.filter((product) => matchesName(product, normalizedTerm));
+};
+
 export const searchProductsPage = (
   term: string,
   config: ValidConfig,
@@ -21,7 +59,7 @@ export const searchProductsPage = (
         searchProducts: {
           products: {
             pageInfo: {
-              hasNextPage: boolean;
+              startCursor: string | null;
               endCursor: string | null;
             };
             edges: {
@@ -41,7 +79,7 @@ export const searchProductsPage = (
                     searchProducts(filters: { searchTerm: $term }) {
                         products(first: $first, after: $after) {
                             pageInfo {
-                                hasNextPage
+                                startCursor
                                 endCursor
                             }
                             edges {
@@ -66,7 +104,7 @@ export const searchProductsPage = (
   )
   .then((response) => ({
     products: response.site.search.searchProducts.products.edges.map((e) => e.node),
-    hasNextPage: response.site.search.searchProducts.products.pageInfo.hasNextPage,
+    hasNextPage: response.site.search.searchProducts.products.edges.length === first,
     endCursor: response.site.search.searchProducts.products.pageInfo.endCursor,
   }));
 };
@@ -76,5 +114,19 @@ export const searchProducts: (
   config: ValidConfig
 ) => Promise<Product[]> = async (term: string = "", config) => {
   const firstPage = await searchProductsPage(term, config, 50, null);
-  return firstPage.products;
+  return filterProductsByName(firstPage.products, term);
+};
+
+export const searchProductsBySku = async (
+  term: string,
+  config: ValidConfig,
+): Promise<Product[]> => {
+  const normalizedTerm = normalizeTerm(term);
+
+  if (!normalizedTerm || !isSkuLikeTerm(term)) {
+    return [];
+  }
+
+  const firstPage = await searchProductsPage(term, config, 50, null);
+  return firstPage.products.filter((product) => matchesSku(product, normalizedTerm));
 };

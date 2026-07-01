@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { ValidConfig } from "../types/config.ts";
 import { Product } from "../types/product";
-import { searchProductsPage } from "../integration/searchProducts.ts";
+import { filterProductsByName, searchProductsPage } from "../integration/searchProducts.ts";
 
 const PAGE_SIZE = 40;
 
 export const useProductInfiniteSearch = (
   config: ValidConfig,
   term: string,
+  enabled: boolean = true,
 ) => {
   const [state, setState] = useState<"loading" | "error" | "idle">("idle");
   const [products, setProducts] = useState<Product[]>([]);
@@ -16,6 +17,15 @@ export const useProductInfiniteSearch = (
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
+    if (!enabled) {
+      setState("idle");
+      setProducts([]);
+      setHasMore(false);
+      setEndCursor(null);
+      setIsLoadingMore(false);
+      return;
+    }
+
     let isStale = false;
 
     setState("loading");
@@ -28,7 +38,7 @@ export const useProductInfiniteSearch = (
         if (isStale) {
           return;
         }
-        setProducts(page.products);
+        setProducts(filterProductsByName(page.products, term));
         setHasMore(page.hasNextPage);
         setEndCursor(page.endCursor);
         setState("idle");
@@ -44,7 +54,7 @@ export const useProductInfiniteSearch = (
     return () => {
       isStale = true;
     };
-  }, [config, term]);
+  }, [config, enabled, term]);
 
   const loadMore = useCallback(() => {
     if (state !== "idle" || isLoadingMore || !hasMore) {
@@ -55,7 +65,7 @@ export const useProductInfiniteSearch = (
     searchProductsPage(term, config, PAGE_SIZE, endCursor)
       .then((page) => {
         setProducts((prev) => {
-          const merged = [...prev, ...page.products];
+          const merged = [...prev, ...filterProductsByName(page.products, term)];
           return Array.from(new Map(merged.map((product) => [product.id, product])).values());
         });
         setHasMore(page.hasNextPage);

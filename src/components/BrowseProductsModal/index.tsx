@@ -8,6 +8,8 @@ import S from "./style.module.css"
 import {ProductsGrid} from "../ProductsGrid";
 import {BigcommerceEntity, BigcommerceEntityType, Category} from "../../types/entity.ts";
 import {useProductInfiniteSearch} from "../../hooks/useProductInfiniteSearch.ts";
+import {useProductSkuSearch} from "../../hooks/useProductSkuSearch.ts";
+import {isSkuLikeTerm} from "../../integration/searchProducts.ts";
 
 const SearchBar = (props: { onChange: (term: string) => void, entityType: BigcommerceEntityType }) => {
   const debouncedOnChange = useDebouncedCallback(props.onChange, 1000)
@@ -17,7 +19,7 @@ const SearchBar = (props: { onChange: (term: string) => void, entityType: Bigcom
     label={""}
     value={undefined}
     onChange={debouncedOnChange}
-    placeholder={`Search ${props.entityType}s...`}
+    placeholder={props.entityType === "product" ? "Search products by name or SKU..." : `Search ${props.entityType}s...`}
   />
 }
 
@@ -139,11 +141,27 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
 
   const [searchTerm, setSearchTerm] = useState("");
   const entitySearch = useEntitySearch(props.entityType, props.config, searchTerm, props.entityType !== "product");
-  const productSearch = useProductInfiniteSearch(props.config, searchTerm);
-  const activeState = props.entityType === "product" ? productSearch.state : entitySearch.state;
+  const skuSearchMode = props.entityType === "product" && isSkuLikeTerm(searchTerm);
+  const productSearch = useProductInfiniteSearch(props.config, searchTerm, props.entityType === "product" && !skuSearchMode);
+  const skuSearch = useProductSkuSearch(props.config, searchTerm, skuSearchMode);
+  const activeState = props.entityType === "product"
+    ? (
+      productSearch.state === "error" || skuSearch.state === "error"
+        ? "error"
+        : skuSearchMode
+          ? skuSearch.state
+          : productSearch.state
+          )
+    : entitySearch.state;
   const activeEntities = useMemo(
-    () => (props.entityType === "product" ? productSearch.products : entitySearch.entities),
-    [entitySearch.entities, productSearch.products, props.entityType],
+    () => {
+      if (props.entityType !== "product") {
+        return entitySearch.entities;
+      }
+
+      return skuSearchMode ? skuSearch.products : productSearch.products;
+    },
+    [entitySearch.entities, productSearch.products, props.entityType, skuSearch.products, skuSearchMode],
   );
   const categoryTree =
     props.entityType === "category"
@@ -156,7 +174,7 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
   }, [props.ctx]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    if (props.entityType !== "product" || !productSearch.hasMore || productSearch.isLoadingMore) {
+    if (props.entityType !== "product" || skuSearchMode || !productSearch.hasMore || productSearch.isLoadingMore) {
       return;
     }
 
