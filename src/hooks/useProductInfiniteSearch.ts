@@ -8,6 +8,7 @@ const PAGE_SIZE = 40;
 export const useProductInfiniteSearch = (
   config: ValidConfig,
   term: string,
+  enabled: boolean = true,
 ) => {
   const [state, setState] = useState<"loading" | "error" | "idle">("idle");
   const [products, setProducts] = useState<Product[]>([]);
@@ -16,6 +17,15 @@ export const useProductInfiniteSearch = (
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
+    if (!enabled) {
+      setState("idle");
+      setProducts([]);
+      setHasMore(false);
+      setEndCursor(null);
+      setIsLoadingMore(false);
+      return;
+    }
+
     let isStale = false;
 
     setState("loading");
@@ -44,7 +54,7 @@ export const useProductInfiniteSearch = (
     return () => {
       isStale = true;
     };
-  }, [config, term]);
+  }, [config, enabled, term]);
 
   const loadMore = useCallback(() => {
     if (state !== "idle" || isLoadingMore || !hasMore) {
