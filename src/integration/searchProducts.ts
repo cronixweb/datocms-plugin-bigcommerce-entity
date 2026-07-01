@@ -31,6 +31,22 @@ const matchesSku = (product: Product, term: string) => {
   return sku === normalizeTerm(term);
 };
 
+const matchesName = (product: Product, term: string) => {
+  const name = product.name.trim().toLowerCase();
+
+  return name.includes(normalizeTerm(term));
+};
+
+export const filterProductsByName = (products: Product[], term: string) => {
+  const normalizedTerm = normalizeTerm(term);
+
+  if (!normalizedTerm) {
+    return products;
+  }
+
+  return products.filter((product) => matchesName(product, normalizedTerm));
+};
+
 export const searchProductsPage = (
   term: string,
   config: ValidConfig,
@@ -98,7 +114,7 @@ export const searchProducts: (
   config: ValidConfig
 ) => Promise<Product[]> = async (term: string = "", config) => {
   const firstPage = await searchProductsPage(term, config, 50, null);
-  return firstPage.products;
+  return filterProductsByName(firstPage.products, term);
 };
 
 export const searchProductsBySku = async (

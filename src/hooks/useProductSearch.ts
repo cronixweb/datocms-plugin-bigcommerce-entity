@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {searchProducts} from "../integration/searchProducts";
+import {filterProductsByName, searchProducts} from "../integration/searchProducts";
 import {Product} from "../types/product";
 import {ValidConfig} from "../types/config.ts";
 
@@ -13,7 +13,7 @@ export const useProductSearch = (config: ValidConfig, term: string) => {
 
     searchProducts(term, config)
       .then((products) => {
-        setProducts(products);
+        setProducts(filterProductsByName(products, term));
       })
       .then(() => setState("idle"))
       .catch((e) => {
