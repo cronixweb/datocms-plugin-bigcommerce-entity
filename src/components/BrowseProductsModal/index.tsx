@@ -2,20 +2,19 @@ import {RenderModalCtx} from "datocms-plugin-sdk";
 import {ValidConfig} from "../../types/config.ts";
 import {Button, Canvas, Spinner, TextField, Toolbar} from "datocms-react-ui";
 import {useDebouncedCallback} from "use-debounce";
-import {UIEvent, useEffect, useMemo, useState} from "react";
+import {useEffect, useState} from "react";
 import {useEntitySearch} from "../../hooks/useEntitySearch.ts";
 import S from "./style.module.css"
 import {ProductsGrid} from "../ProductsGrid";
 import {BigcommerceEntity, BigcommerceEntityType, Category} from "../../types/entity.ts";
-import {useProductInfiniteSearch} from "../../hooks/useProductInfiniteSearch.ts";
 
-const SearchBar = (props: { onChange: (term: string) => void, entityType: BigcommerceEntityType }) => {
+const SearchBar = (props: { value: string; onChange: (term: string) => void, entityType: BigcommerceEntityType }) => {
   const debouncedOnChange = useDebouncedCallback(props.onChange, 1000)
   return <TextField
     id={"search"}
     name={"search"}
     label={""}
-    value={undefined}
+    value={props.value}
     onChange={debouncedOnChange}
     placeholder={`Search ${props.entityType}s...`}
   />
@@ -138,13 +137,9 @@ const CategoryTreeItem = (props: {
 export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidConfig, entityType: BigcommerceEntityType }) => {
 
   const [searchTerm, setSearchTerm] = useState("");
-  const entitySearch = useEntitySearch(props.entityType, props.config, searchTerm, props.entityType !== "product");
-  const productSearch = useProductInfiniteSearch(props.config, searchTerm);
-  const activeState = props.entityType === "product" ? productSearch.state : entitySearch.state;
-  const activeEntities = useMemo(
-    () => (props.entityType === "product" ? productSearch.products : entitySearch.entities),
-    [entitySearch.entities, productSearch.products, props.entityType],
-  );
+  const entitySearch = useEntitySearch(props.entityType, props.config, searchTerm);
+  const activeState = entitySearch.state;
+  const activeEntities = entitySearch.entities;
   const categoryTree =
     props.entityType === "category"
       ? buildCategoryTree(activeEntities as Category[])
@@ -155,26 +150,11 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
     props.ctx.updateHeight(720);
   }, [props.ctx]);
 
-  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    if (props.entityType !== "product" || !productSearch.hasMore || productSearch.isLoadingMore) {
-      return;
-    }
-
-    const target = event.currentTarget;
-    const threshold = 80;
-    const isNearBottom =
-      target.scrollHeight - target.scrollTop - target.clientHeight <= threshold;
-
-    if (isNearBottom) {
-      productSearch.loadMore();
-    }
-  };
-
   return <Canvas ctx={props.ctx}>
     <Toolbar>
-      <SearchBar onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
+      <SearchBar value={searchTerm} onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
     </Toolbar>
-    <div className={S.container} onScroll={handleScroll}>
+    <div className={S.container}>
       {activeState === "loading" && <Spinner size={25} placement="centered"/>}
       {activeState === "error" && "There has been an error, please try again later."}
       {activeState === "idle" ? <>
@@ -187,9 +167,6 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
             products={activeEntities}
             onProductClick={(product: BigcommerceEntity) => props.ctx.resolve(product)}
           />}
-          {props.entityType === "product" && productSearch.isLoadingMore ? (
-            <div className={S.loadMoreIndicator}><Spinner size={18} /> Loading more products...</div>
-          ) : null}
         </>
         : null}
     </div>
