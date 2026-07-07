@@ -1,8 +1,8 @@
 import type {RenderConfigScreenCtx} from 'datocms-plugin-sdk';
 import {Button, Canvas, ContextInspector, FieldGroup, SwitchField, TextField} from 'datocms-react-ui';
 import {Controller, useForm} from "react-hook-form";
-import {normalizeConfig, ValidConfig} from "../types/config.ts";
-import {searchProducts} from "../integration/searchProducts.ts";
+import {normalizeConfig} from "../types/config.ts";
+import {searchProductsPage} from "../integration/searchProducts.ts";
 
 type Props = {
   ctx: RenderConfigScreenCtx;
@@ -31,14 +31,9 @@ export default function ConfigScreen({ctx}: Props) {
   });
   return (
     <Canvas ctx={ctx}>
-      <form onSubmit={handleSubmit((data) => {
-        const { extraCategoryRootEntityIdsInput, ...configFields } = data;
-        const nextConfig: ValidConfig = {
-          ...configFields,
-          extraCategoryRootEntityIds: parseExtraCategoryRootEntityIds(extraCategoryRootEntityIdsInput),
-        };
-        return searchProducts("foo", nextConfig)
-          .then(() => ctx.updatePluginParameters(nextConfig))
+      <form onSubmit={handleSubmit(data =>
+        searchProductsPage("foo", data, 1, null)
+          .then(() => ctx.updatePluginParameters(data))
           .then(() => ctx.notice('Settings updated successfully!'))
           .then(() => reset({
             ...nextConfig,
