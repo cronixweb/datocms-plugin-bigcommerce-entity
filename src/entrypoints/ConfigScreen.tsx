@@ -1,7 +1,7 @@
 import type {RenderConfigScreenCtx} from 'datocms-plugin-sdk';
 import {Button, Canvas, ContextInspector, FieldGroup, SwitchField, TextField} from 'datocms-react-ui';
 import {Controller, useForm} from "react-hook-form";
-import {normalizeConfig} from "../types/config.ts";
+import {normalizeConfig, type ValidConfig} from "../types/config.ts";
 import {searchProductsPage} from "../integration/searchProducts.ts";
 
 type Props = {
@@ -31,15 +31,20 @@ export default function ConfigScreen({ctx}: Props) {
   });
   return (
     <Canvas ctx={ctx}>
-      <form onSubmit={handleSubmit(data =>
-        searchProductsPage("foo", data, 1, null)
-          .then(() => ctx.updatePluginParameters(data))
+      <form onSubmit={handleSubmit((data) => {
+        const nextConfig: ValidConfig = {
+          ...data,
+          extraCategoryRootEntityIds: parseExtraCategoryRootEntityIds(data.extraCategoryRootEntityIdsInput),
+        };
+
+        return searchProductsPage("foo", nextConfig, 1, null)
+          .then(() => ctx.updatePluginParameters(nextConfig))
           .then(() => ctx.notice('Settings updated successfully!'))
           .then(() => reset({
             ...nextConfig,
             extraCategoryRootEntityIdsInput: nextConfig.extraCategoryRootEntityIds?.join(", ") || "",
           }))
-          .catch(() => ctx.alert('Failed to connect to BigCommerce, please check your settings.'))
+          .catch(() => ctx.alert('Failed to connect to BigCommerce, please check your settings.'));
       })}>
         <FieldGroup>
           <Controller
