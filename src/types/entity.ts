@@ -2,6 +2,11 @@ import { Product } from "./product";
 
 export type EntityIdKey = "id" | "entityId";
 export type BigcommerceEntityType = "product" | "brand" | "category";
+export type FieldExtensionParameters = {
+  idType?: EntityIdKey;
+  entityType?: BigcommerceEntityType;
+  labelFieldApiKey?: string;
+};
 
 export type Brand = {
   id: string;

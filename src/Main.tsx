@@ -1,14 +1,14 @@
-import {connect} from "datocms-plugin-sdk";
+import { connect } from "datocms-plugin-sdk";
 import "datocms-react-ui/styles.css";
 import ConfigScreen from "./entrypoints/ConfigScreen";
-import {render} from "./utils/render";
-import {FieldConfigScreen} from "./entrypoints/FieldConfigScreen.tsx";
-import {FieldExtension} from "./entrypoints/FieldExtension.tsx";
-import {BrowseProductsModal} from "./components/BrowseProductsModal";
-import {isValidConfig, normalizeConfig} from "./types/config.ts";
-import {BigcommerceEntityType} from "./types/entity.ts";
+import { render } from "./utils/render";
+import { FieldConfigScreen } from "./entrypoints/FieldConfigScreen.tsx";
+import { FieldExtension } from "./entrypoints/FieldExtension.tsx";
+import { BrowseProductsModal } from "./components/BrowseProductsModal";
+import { isValidConfig, normalizeConfig } from "./types/config.ts";
+import { BigcommerceEntityType } from "./types/entity.ts";
 
-const FIELD_EXTENSION_ID = "bigcommerceProduct"
+const FIELD_EXTENSION_ID = "bigcommerceProduct";
 
 connect({
   async onBoot(ctx) {
@@ -33,7 +33,7 @@ connect({
 
           await ctx.updateFieldAppearance(field.id, [
             {
-              operation: 'updateEditor',
+              operation: "updateEditor",
               newFieldExtensionId: FIELD_EXTENSION_ID,
             },
           ]);
@@ -48,44 +48,54 @@ connect({
     );
 
     if (someUpgraded) {
-      ctx.notice('Plugin upgraded successfully!');
+      ctx.notice("Plugin upgraded successfully!");
     }
   },
   manualFieldExtensions() {
     return [
       {
         id: FIELD_EXTENSION_ID,
-        name: 'BigCommerce Entity',
-        type: 'editor',
-        fieldTypes: ['string', 'integer'],
+        name: "BigCommerce Entity",
+        type: "editor",
+        fieldTypes: ["string", "integer"],
         configurable: true,
       },
     ];
   },
   renderManualFieldExtensionConfigScreen(fieldExtensionId, ctx) {
-    return render(<FieldConfigScreen ctx={ctx} extensionId={fieldExtensionId}/>)
+    return render(
+      <FieldConfigScreen ctx={ctx} extensionId={fieldExtensionId} />,
+    );
   },
   renderConfigScreen(ctx) {
-    return render(<ConfigScreen ctx={ctx}/>);
+    return render(<ConfigScreen ctx={ctx} />);
   },
   renderFieldExtension(_id, ctx) {
-    render(<FieldExtension ctx={ctx}/>);
+    render(<FieldExtension ctx={ctx} />);
   },
   renderModal(modalId, ctx) {
-    if (!["browseProducts", "browseBrands", "browseCategories"].includes(modalId)) {
+    if (
+      !["browseProducts", "browseBrands", "browseCategories"].includes(modalId)
+    ) {
       return null;
     }
 
-    const inferredEntityType: BigcommerceEntityType = modalId === "browseBrands"
-      ? "brand"
-      : modalId === "browseCategories"
-        ? "category"
-        : "product";
+    const inferredEntityType: BigcommerceEntityType =
+      modalId === "browseBrands"
+        ? "brand"
+        : modalId === "browseCategories"
+          ? "category"
+          : "product";
 
-    return render(<BrowseProductsModal
-      ctx={ctx}
-      config={normalizeConfig(ctx.plugin.attributes.parameters)}
-      entityType={((ctx.parameters as { entityType?: BigcommerceEntityType })?.entityType || inferredEntityType)}
-    />)
-  }
+    return render(
+      <BrowseProductsModal
+        ctx={ctx}
+        config={normalizeConfig(ctx.plugin.attributes.parameters)}
+        entityType={
+          (ctx.parameters as { entityType?: BigcommerceEntityType })
+            ?.entityType || inferredEntityType
+        }
+      />,
+    );
+  },
 });

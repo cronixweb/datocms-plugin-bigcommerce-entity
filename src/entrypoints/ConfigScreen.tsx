@@ -8,9 +8,25 @@ type Props = {
   ctx: RenderConfigScreenCtx;
 };
 
+type ConfigFormValues = ValidConfig & {
+  extraCategoryRootEntityIdsInput: string;
+};
+
+const parseExtraCategoryRootEntityIds = (value: string): number[] =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item > 0);
+
 export default function ConfigScreen({ctx}: Props) {
+  const normalizedConfig = normalizeConfig(ctx.plugin.attributes.parameters);
   const {handleSubmit, control, formState, reset} = useForm({
-    defaultValues: normalizeConfig(ctx.plugin.attributes.parameters),
+    defaultValues: {
+      ...normalizedConfig,
+      extraCategoryRootEntityIdsInput: normalizedConfig.extraCategoryRootEntityIds?.join(", ") || "",
+    } satisfies ConfigFormValues,
     mode: "onChange"
   });
   return (
@@ -19,9 +35,12 @@ export default function ConfigScreen({ctx}: Props) {
         searchProductsPage("foo", data, 1, null)
           .then(() => ctx.updatePluginParameters(data))
           .then(() => ctx.notice('Settings updated successfully!'))
-          .then(() => reset(data))
+          .then(() => reset({
+            ...nextConfig,
+            extraCategoryRootEntityIdsInput: nextConfig.extraCategoryRootEntityIds?.join(", ") || "",
+          }))
           .catch(() => ctx.alert('Failed to connect to BigCommerce, please check your settings.'))
-      )}>
+      })}>
         <FieldGroup>
           <Controller
             rules={{required: true}}
@@ -62,6 +81,19 @@ export default function ConfigScreen({ctx}: Props) {
               onChange={field.onChange}
               label={"Use products' entityId by default?"}
               hint={"By default, use products entityId (numeric) instead of storefront API ids."}
+            />}
+          />
+          <Controller
+            name={"extraCategoryRootEntityIdsInput"}
+            control={control}
+            render={({field, fieldState}) => <TextField
+              id={field.name}
+              label={"Extra category root entity IDs"}
+              name={field.name}
+              onChange={field.onChange}
+              value={field.value}
+              error={fieldState.error?.message}
+              hint={"Optional comma-separated category entity IDs whose branches should be fetched explicitly."}
             />}
           />
         </FieldGroup>

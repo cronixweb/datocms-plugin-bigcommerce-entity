@@ -26,7 +26,7 @@ const inMemoryCache = new Map<string, { expiresAt: number; categories: Category[
 const inFlightFetches = new Map<string, Promise<Category[]>>();
 
 const getCacheKey = (config: ValidConfig) =>
-  `${CATEGORY_CACHE_PREFIX}:${config.graphqlEndpoint}`;
+  `${CATEGORY_CACHE_PREFIX}:${config.graphqlEndpoint}:${(config.extraCategoryRootEntityIds || []).slice().sort((a, b) => a - b).join(",")}`;
 
 const readLocalCache = (key: string): { expiresAt: number; categories: Category[] } | null => {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -132,9 +132,12 @@ const fetchAllCategories = async (config: ValidConfig): Promise<Category[]> => {
     );
 
     const categories: Category[] = rootsResponse.site.categoryTree.map(mapToCategory);
-    const queue: number[] = rootsResponse.site.categoryTree
-      .filter((node) => Boolean(node.hasChildren))
-      .map((node) => node.entityId);
+    const queue = Array.from(new Set([
+      ...rootsResponse.site.categoryTree
+        .filter((node) => Boolean(node.hasChildren))
+        .map((node) => node.entityId),
+      ...(config.extraCategoryRootEntityIds || []),
+    ]));
     const visitedParents = new Set<number>();
 
     while (queue.length > 0) {
@@ -177,6 +180,9 @@ const fetchAllCategories = async (config: ValidConfig): Promise<Category[]> => {
       const parentNode =
         branchResponse.site.categoryTree.find((node) => node.entityId === rootEntityId) ||
         branchResponse.site.categoryTree[0];
+      if (parentNode) {
+        categories.push(mapToCategory(parentNode));
+      }
       const children = parentNode?.children || [];
 
       children.forEach((child) => {
