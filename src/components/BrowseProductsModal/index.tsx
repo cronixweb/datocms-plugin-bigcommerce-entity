@@ -1,21 +1,20 @@
 import {RenderModalCtx} from "datocms-plugin-sdk";
 import {ValidConfig} from "../../types/config.ts";
 import {Button, Canvas, Spinner, TextField, Toolbar} from "datocms-react-ui";
-import {useDebouncedCallback} from "use-debounce";
 import {useEffect, useState} from "react";
 import {useEntitySearch} from "../../hooks/useEntitySearch.ts";
 import S from "./style.module.css"
 import {ProductsGrid} from "../ProductsGrid";
 import {BigcommerceEntity, BigcommerceEntityType, Category} from "../../types/entity.ts";
+import {clearProductCache, isProductCacheWarmupInProgress} from "../../integration/searchProducts.ts";
 
 const SearchBar = (props: { value: string; onChange: (term: string) => void, entityType: BigcommerceEntityType }) => {
-  const debouncedOnChange = useDebouncedCallback(props.onChange, 1000)
   return <TextField
     id={"search"}
     name={"search"}
     label={""}
     value={props.value}
-    onChange={debouncedOnChange}
+    onChange={props.onChange}
     placeholder={`Search ${props.entityType}s...`}
   />
 }
@@ -137,9 +136,12 @@ const CategoryTreeItem = (props: {
 export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidConfig, entityType: BigcommerceEntityType }) => {
 
   const [searchTerm, setSearchTerm] = useState("");
-  const entitySearch = useEntitySearch(props.entityType, props.config, searchTerm);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  const [cacheRevision, setCacheRevision] = useState(0);
+  const entitySearch = useEntitySearch(props.entityType, props.config, debouncedSearchTerm, true, cacheRevision);
   const activeState = entitySearch.state;
   const activeEntities = entitySearch.entities;
+  const warmupInProgress = props.entityType === "product" && isProductCacheWarmupInProgress(props.config);
   const categoryTree =
     props.entityType === "category"
       ? buildCategoryTree(activeEntities as Category[])
@@ -150,15 +152,47 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
     props.ctx.updateHeight(720);
   }, [props.ctx]);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [searchTerm]);
+
   return <Canvas ctx={props.ctx}>
     <Toolbar>
-      <SearchBar value={searchTerm} onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
+      <div style={{display: "flex", gap: 8, alignItems: "end", width: "100%"}}>
+        <div style={{flex: "1 1 auto", minWidth: 0}}>
+          <SearchBar value={searchTerm} onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
+        </div>
+        {props.entityType === "product" ? (
+          <div style={{flex: "0 0 112px"}}>
+            <Button
+              buttonType="muted"
+              buttonSize="s"
+              fullWidth
+              onClick={() => {
+                clearProductCache(props.config);
+                setSearchTerm("");
+                setDebouncedSearchTerm("");
+                setCacheRevision((value) => value + 1);
+              }}
+            >
+              Clear cache
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </Toolbar>
     <div className={S.container}>
-      {activeState === "loading" && <Spinner size={25} placement="centered"/>}
+      {activeState === "loading" && activeEntities.length === 0 && <Spinner size={25} placement="centered"/>}
       {activeState === "error" && "There has been an error, please try again later."}
-      {activeState === "idle" ? <>
-          {activeEntities.length === 0 ? `No ${props.entityType}s found.` : props.entityType === "category" ? (
+      {activeEntities.length === 0 && activeState === "idle" ? `No ${props.entityType}s found.` : null}
+      {activeEntities.length > 0 ? <>
+          {props.entityType === "category" ? (
             <CategoryTree
               nodes={categoryTree}
               onSelect={(category) => props.ctx.resolve(category)}
@@ -169,6 +203,12 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
           />}
         </>
         : null}
+      {activeEntities.length > 0 && (activeState === "loading" || warmupInProgress) ? (
+        <div className={S.loadMoreIndicator}>
+          <Spinner size={16} />
+          Loading more results in the background...
+        </div>
+      ) : null}
     </div>
   </Canvas>
 }

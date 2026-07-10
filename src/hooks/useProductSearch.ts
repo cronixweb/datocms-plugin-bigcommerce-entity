@@ -9,7 +9,6 @@ export const useProductSearch = (config: ValidConfig, term: string) => {
   const [products, setProducts] = useState<Product[]>([]);
   useEffect(() => {
     setState("loading");
-    setProducts([]);
 
     searchProducts(term, config)
       .then((products) => {
@@ -23,7 +22,7 @@ export const useProductSearch = (config: ValidConfig, term: string) => {
 
     return () => {
     };
-  }, [term]);
+  }, [config, term]);
 
   return {state, products};
 };

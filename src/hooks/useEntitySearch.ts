@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ValidConfig } from "../types/config.ts";
 import { BigcommerceEntity, BigcommerceEntityType } from "../types/entity.ts";
 import { searchProducts } from "../integration/searchProducts.ts";
+import { filterProductsByTerm, getCachedProducts, isProductCacheWarmupInProgress, subscribeProductCache } from "../integration/searchProducts.ts";
 import { searchBrands } from "../integration/searchBrands.ts";
 import { searchCategories } from "../integration/searchCategories.ts";
 
@@ -19,6 +20,7 @@ export const useEntitySearch = (
   config: ValidConfig,
   term: string,
   enabled: boolean = true,
+  revision: number = 0,
 ) => {
   const [state, setState] = useState<"loading" | "error" | "idle">("idle");
   const [entities, setEntities] = useState<BigcommerceEntity[]>([]);
@@ -30,10 +32,42 @@ export const useEntitySearch = (
       return;
     }
 
+    if (entityType === "product") {
+      let isStale = false;
+
+      const refreshFromCache = () => {
+        if (isStale) {
+          return;
+        }
+
+        const cached = getCachedProducts(config) || [];
+        setEntities(filterProductsByTerm(cached, term));
+        setState(isProductCacheWarmupInProgress(config) ? "loading" : "idle");
+      };
+
+      setState("loading");
+      setEntities([]);
+
+      void searchProducts(term, config).catch((e) => {
+        if (isStale) {
+          return;
+        }
+        console.error(e);
+        setState("error");
+      });
+
+      const unsubscribe = subscribeProductCache(config, refreshFromCache);
+      refreshFromCache();
+
+      return () => {
+        isStale = true;
+        unsubscribe();
+      };
+    }
+
     let isStale = false;
 
     setState("loading");
-    setEntities([]);
 
     searchByType[entityType](term, config)
       .then((results) => {
@@ -59,7 +93,7 @@ export const useEntitySearch = (
     return () => {
       isStale = true;
     };
-  }, [config, enabled, entityType, term]);
+  }, [config, enabled, entityType, term, revision]);
 
   return { state, entities };
 };
