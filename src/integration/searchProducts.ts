@@ -78,6 +78,24 @@ export const getCachedProducts = (config: ValidConfig): Product[] | null => {
   return getCacheEntry(config)?.products ?? null;
 };
 
+export const clearProductCache = (config: ValidConfig) => {
+  const key = getCacheKey(config);
+  inMemoryCache.delete(key);
+
+  if (typeof window === "undefined" || !window.localStorage) {
+    notifySubscribers(key);
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore localStorage removal failures.
+  }
+
+  notifySubscribers(key);
+};
+
 export const isProductCacheWarmupInProgress = (config: ValidConfig): boolean => {
   return inFlightFetches.has(getCacheKey(config)) && !(getCacheEntry(config)?.warmupComplete);
 };

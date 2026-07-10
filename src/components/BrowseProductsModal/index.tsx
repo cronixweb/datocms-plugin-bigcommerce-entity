@@ -6,7 +6,7 @@ import {useEntitySearch} from "../../hooks/useEntitySearch.ts";
 import S from "./style.module.css"
 import {ProductsGrid} from "../ProductsGrid";
 import {BigcommerceEntity, BigcommerceEntityType, Category} from "../../types/entity.ts";
-import {isProductCacheWarmupInProgress} from "../../integration/searchProducts.ts";
+import {clearProductCache, isProductCacheWarmupInProgress} from "../../integration/searchProducts.ts";
 
 const SearchBar = (props: { value: string; onChange: (term: string) => void, entityType: BigcommerceEntityType }) => {
   return <TextField
@@ -137,7 +137,8 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  const entitySearch = useEntitySearch(props.entityType, props.config, debouncedSearchTerm);
+  const [cacheRevision, setCacheRevision] = useState(0);
+  const entitySearch = useEntitySearch(props.entityType, props.config, debouncedSearchTerm, true, cacheRevision);
   const activeState = entitySearch.state;
   const activeEntities = entitySearch.entities;
   const warmupInProgress = props.entityType === "product" && isProductCacheWarmupInProgress(props.config);
@@ -163,7 +164,28 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
 
   return <Canvas ctx={props.ctx}>
     <Toolbar>
-      <SearchBar value={searchTerm} onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
+      <div style={{display: "flex", gap: 8, alignItems: "end", width: "100%"}}>
+        <div style={{flex: "1 1 auto", minWidth: 0}}>
+          <SearchBar value={searchTerm} onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
+        </div>
+        {props.entityType === "product" ? (
+          <div style={{flex: "0 0 112px"}}>
+            <Button
+              buttonType="muted"
+              buttonSize="s"
+              fullWidth
+              onClick={() => {
+                clearProductCache(props.config);
+                setSearchTerm("");
+                setDebouncedSearchTerm("");
+                setCacheRevision((value) => value + 1);
+              }}
+            >
+              Clear cache
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </Toolbar>
     <div className={S.container}>
       {activeState === "loading" && activeEntities.length === 0 && <Spinner size={25} placement="centered"/>}

@@ -20,6 +20,7 @@ export const useEntitySearch = (
   config: ValidConfig,
   term: string,
   enabled: boolean = true,
+  revision: number = 0,
 ) => {
   const [state, setState] = useState<"loading" | "error" | "idle">("idle");
   const [entities, setEntities] = useState<BigcommerceEntity[]>([]);
@@ -92,7 +93,7 @@ export const useEntitySearch = (
     return () => {
       isStale = true;
     };
-  }, [config, enabled, entityType, term]);
+  }, [config, enabled, entityType, term, revision]);
 
   return { state, entities };
 };
