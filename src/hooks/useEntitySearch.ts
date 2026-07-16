@@ -68,6 +68,7 @@ export const useEntitySearch = (
     let isStale = false;
 
     setState("loading");
+    setEntities([]);
 
     searchByType[entityType](term, config)
       .then((results) => {
