@@ -69,6 +69,21 @@ const getCachedBrands = (config: ValidConfig): Brand[] | null => {
   return localEntry.brands;
 };
 
+export const clearBrandCache = (config: ValidConfig) => {
+  const key = getCacheKey(config);
+  inMemoryCache.delete(key);
+
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore localStorage removal failures.
+  }
+};
+
 const setCachedBrands = (config: ValidConfig, brands: Brand[]) => {
   const key = getCacheKey(config);
   const payload = {
