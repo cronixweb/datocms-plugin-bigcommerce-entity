@@ -85,6 +85,21 @@ const getCachedCategories = (config: ValidConfig): Category[] | null => {
   return localEntry.categories;
 };
 
+export const clearCategoryCache = (config: ValidConfig) => {
+  const key = getCacheKey(config);
+  inMemoryCache.delete(key);
+
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Ignore localStorage removal failures.
+  }
+};
+
 const setCachedCategories = (config: ValidConfig, categories: Category[]) => {
   const key = getCacheKey(config);
   const payload = {

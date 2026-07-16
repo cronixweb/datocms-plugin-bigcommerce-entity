@@ -7,6 +7,8 @@ import S from "./style.module.css"
 import {ProductsGrid} from "../ProductsGrid";
 import {BigcommerceEntity, BigcommerceEntityType, Category} from "../../types/entity.ts";
 import {clearProductCache, isProductCacheWarmupInProgress} from "../../integration/searchProducts.ts";
+import {clearCategoryCache} from "../../integration/searchCategories.ts";
+import {clearBrandCache} from "../../integration/searchBrands.ts";
 
 const SearchBar = (props: { value: string; onChange: (term: string) => void, entityType: BigcommerceEntityType }) => {
   return <TextField
@@ -162,24 +164,40 @@ export const BrowseProductsModal = (props: { ctx: RenderModalCtx, config: ValidC
     };
   }, [searchTerm]);
 
+  const handleClearCache = () => {
+    if (props.entityType === "product") {
+      clearProductCache(props.config);
+    } else if (props.entityType === "category") {
+      clearCategoryCache(props.config);
+    } else if (props.entityType === "brand") {
+      clearBrandCache(props.config);
+    } else {
+      return;
+    }
+
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+    setCacheRevision((value) => value + 1);
+  };
+
+  const canClearCache =
+    props.entityType === "product" ||
+    props.entityType === "category" ||
+    props.entityType === "brand";
+
   return <Canvas ctx={props.ctx}>
     <Toolbar>
       <div style={{display: "flex", gap: 8, alignItems: "end", width: "100%"}}>
         <div style={{flex: "1 1 auto", minWidth: 0}}>
           <SearchBar value={searchTerm} onChange={v => setSearchTerm(v)} entityType={props.entityType}/>
         </div>
-        {props.entityType === "product" ? (
+        {canClearCache ? (
           <div style={{flex: "0 0 112px"}}>
             <Button
               buttonType="muted"
               buttonSize="s"
               fullWidth
-              onClick={() => {
-                clearProductCache(props.config);
-                setSearchTerm("");
-                setDebouncedSearchTerm("");
-                setCacheRevision((value) => value + 1);
-              }}
+              onClick={handleClearCache}
             >
               Clear cache
             </Button>
